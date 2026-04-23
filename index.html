@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WSC Task Board — Harper</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f1efe9;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #1a1a18;
+    --text2: #5a5a55;
+    --text3: #9a9a93;
+    --todo-col: #64748b;
+    --doing-col: #b45309;
+    --done-col: #15803d;
+    --accent: #1D9E75;
+    --sans: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Playfair Display', serif;
+    --radius: 10px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.07);
+    --shadow-hover: 0 6px 24px rgba(0,0,0,0.11);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* Subtle grid texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .header-left h1 {
+    font-family: var(--serif);
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+
+  .header-left .sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 5px;
+    letter-spacing: 0.08em;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .btn-primary {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.82; }
+
+  .btn-ghost {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--surface);
+    color: var(--text3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); }
+
+  /* Progress */
+  .progress-wrap {
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .progress-meta span {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+
+  .progress-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 5px;
+    transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* Filters */
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 5px 13px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text2);
+    transition: all 0.12s;
+    letter-spacing: 0.02em;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .pill.active.tag-Admin    { background: #E6F1FB; color: #042C53; border-color: #B5D4F4; }
+  .pill.active.tag-Planning { background: #EEEDFE; color: #26215C; border-color: #CECBF6; }
+  .pill.active.tag-Marking  { background: #FAECE7; color: #4A1B0C; border-color: #F5C4B3; }
+  .pill.active.tag-Resources{ background: #EAF3DE; color: #173404; border-color: #C0DD97; }
+  .pill.active.tag-Y11      { background: #FAEEDA; color: #412402; border-color: #FAC775; }
+  .pill.active.tag-NEA      { background: #FBEAF0; color: #4B1528; border-color: #F4C0D1; }
+
+  /* Add task row */
+  .add-row {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 1.25rem;
+    display: none;
+    animation: fadeIn 0.2s ease;
+  }
+  .add-row.open { display: block; }
+
+  .add-row-inner {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .add-row input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .add-row input:focus { border-color: var(--accent); }
+
+  .add-row select {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 8px 10px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .add-row input[type="date"] {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 7px;
+    padding: 8px 10px;
+    outline: none;
+  }
+
+  /* Columns */
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  @media (max-width: 680px) {
+    .cols { grid-template-columns: 1fr; }
+  }
+
+  .col-wrap {}
+
+  .col-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+
+  .col-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .col-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1px 9px;
+  }
+
+  .col-zone {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    transition: background 0.15s;
+  }
+  .col-zone.drag-over {
+    background: #e8f5f0;
+    border-color: var(--accent);
+  }
+
+  .col-empty {
+    text-align: center;
+    padding: 28px 10px;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-style: italic;
+  }
+
+  /* Task card */
+  .task-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 11px;
+    cursor: grab;
+    transition: transform 0.15s, box-shadow 0.15s;
+    animation: fadeIn 0.22s ease;
+    position: relative;
+  }
+  .task-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .task-card:active { cursor: grabbing; }
+  .task-card.dragging { opacity: 0.35; transform: scale(0.95); }
+  .task-card.high-priority { border-left: 3px solid #e11d48; }
+
+  .task-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .task-text {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .task-delete {
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    font-size: 15px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 1px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .task-card:hover .task-delete { opacity: 1; }
+  .task-delete:hover { color: #e11d48; }
+
+  .task-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .task-meta { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+
+  .tag-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 20px;
+    padding: 2px 8px;
+  }
+
+  .deadline-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #b45309;
+  }
+
+  .priority-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #e11d48;
+    margin-right: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  .task-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.12s; }
+  .task-card:hover .task-actions { opacity: 1; }
+
+  .btn-move {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    border: none;
+    border-radius: 5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: opacity 0.12s;
+  }
+
+  /* Confetti */
+  @keyframes confettiBurst {
+    0%   { opacity:1; transform:translateY(0) rotate(0deg) scale(1); }
+    100% { opacity:0; transform:translateY(-110px) rotate(720deg) scale(0); }
+  }
+  .confetti-p {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    animation: confettiBurst 1.1s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform:translateY(5px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* Tag color map */
+  .tb-Admin    { background:#E6F1FB; color:#042C53; }
+  .tb-Planning { background:#EEEDFE; color:#26215C; }
+  .tb-Marking  { background:#FAECE7; color:#4A1B0C; }
+  .tb-Resources{ background:#EAF3DE; color:#173404; }
+  .tb-Y11      { background:#FAEEDA; color:#412402; }
+  .tb-NEA      { background:#FBEAF0; color:#4B1528; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Task Board</h1>
+      <div class="sub">WEST SOMERSET COLLEGE &nbsp;·&nbsp; J. HARPER</div>
+    </div>
+    <div class="header-right">
+      <button class="btn-ghost" onclick="exportTasks()">Export ↓</button>
+      <button class="btn-ghost" onclick="resetBoard()">Reset</button>
+      <button class="btn-primary" onclick="toggleAdd()">+ Add task</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-meta">
+      <span id="progress-label">Loading...</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="filter-row" id="filter-row"></div>
+
+  <div class="add-row" id="add-row">
+    <div class="add-row-inner">
+      <input type="text" id="new-text" placeholder="Task description..." onkeydown="if(event.key==='Enter')commitAdd()">
+      <select id="new-tag">
+        <option>Admin</option><option>Planning</option><option>Marking</option>
+        <option>Resources</option><option>Y11</option><option>NEA</option>
+      </select>
+      <select id="new-priority">
+        <option value="normal">Normal</option>
+        <option value="high">High priority</option>
+      </select>
+      <input type="date" id="new-deadline" title="Deadline (optional)">
+      <button class="btn-primary" style="padding:8px 14px;font-size:12px;" onclick="commitAdd()">Add</button>
+      <button class="btn-ghost" style="padding:8px 12px;font-size:18px;line-height:1;" onclick="toggleAdd()">×</button>
+    </div>
+  </div>
+
+  <div class="cols" id="cols-grid"></div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'wsc-taskboard-standalone-v1';
+const COLS = [
+  { id:'todo',  label:'To do',       color:'#64748b' },
+  { id:'doing', label:'In progress', color:'#b45309' },
+  { id:'done',  label:'Done',        color:'#15803d' },
+];
+const TAGS = ['All','Admin','Planning','Marking','Resources','Y11','NEA'];
+const INITIAL = [
+  {id:1,  text:"Respond to AL mail about laminated KOs",        tag:"Admin",     col:"todo",  priority:"normal"},
+  {id:2,  text:"Complete P0 maps",                              tag:"Planning",  col:"todo",  priority:"normal"},
+  {id:3,  text:"Revisit Learning Hub",                          tag:"Resources", col:"todo",  priority:"normal"},
+  {id:4,  text:"Media Subject Guide",                           tag:"Resources", col:"todo",  priority:"normal"},
+  {id:5,  text:"Compile extended/wider reading lists",          tag:"Resources", col:"todo",  priority:"normal"},
+  {id:6,  text:"Laptops for Media",                             tag:"Admin",     col:"todo",  priority:"normal"},
+  {id:7,  text:"Sort/tidy workroom",                            tag:"Admin",     col:"todo",  priority:"normal"},
+  {id:8,  text:"Final adjustments to 9-11 MTP/LTP",            tag:"Planning",  col:"todo",  priority:"normal"},
+  {id:9,  text:"Marking of Y13 homework essays",                tag:"Marking",   col:"todo",  priority:"normal"},
+  {id:10, text:"Bookmarks for wider reading",                   tag:"Resources", col:"todo",  priority:"normal"},
+  {id:11, text:"Y13 coursework catch-up plan",                  tag:"Planning",  col:"todo",  priority:"normal"},
+  {id:12, text:"Media assessment criteria update",              tag:"Resources", col:"todo",  priority:"normal"},
+  {id:13, text:"Create Y10 knowledge organiser",                tag:"Resources", col:"todo",  priority:"normal"},
+  {id:14, text:"Y11 revision materials",                        tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:15, text:"Y11 mock feedback and action plans",            tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:16, text:"Y11 Action: Teams – Revision Hub complete",     tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:17, text:"Y11 Action: Firm up U grade strategies",        tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:18, text:"Y11 Action: Contact APEX (ask AL for contact)", tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:19, text:"Check S&L NEA situation",                       tag:"NEA",       col:"todo",  priority:"normal"},
+  {id:20, text:"Revisions to Macbeth anthology",                tag:"Resources", col:"todo",  priority:"normal"},
+  {id:21, text:"NEA Moderation and Paperwork – Lit",            tag:"NEA",       col:"todo",  priority:"normal"},
+  {id:22, text:"Post-feedback Y11 MTP",                         tag:"Planning",  col:"todo",  priority:"normal"},
+  {id:23, text:"A-Level Lit marking",                           tag:"Marking",   col:"todo",  priority:"normal"},
+  {id:24, text:"Differentiate deliberate practice",             tag:"Planning",  col:"todo",  priority:"normal"},
+  {id:25, text:"Media NEA Marking",                             tag:"NEA",       col:"todo",  priority:"normal"},
+  {id:26, text:"Send Macbeth booklet to print",                 tag:"Resources", col:"todo",  priority:"normal"},
+  {id:27, text:"Do AIC booklet",                                tag:"Resources", col:"todo",  priority:"normal"},
+  {id:28, text:"CXH Speaking + Listening calls",                tag:"Admin",     col:"todo",  priority:"normal"},
+  {id:29, text:"Put Y11 material on Arbor + Teams",             tag:"Y11",       col:"todo",  priority:"normal"},
+  {id:30, text:"Upload all examiner reports to Claude",         tag:"Admin",     col:"todo",  priority:"normal"},
+  {id:31, text:"Complete Year 13 NEA Marking",                  tag:"NEA",       col:"todo",  priority:"high", deadline:"2026-05-08"},
+];
+
+let tasks = [];
+let filter = 'All';
+let dragId = null;
+let addOpen = false;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    tasks = raw ? JSON.parse(raw) : INITIAL.map(t=>({...t}));
+  } catch { tasks = INITIAL.map(t=>({...t})); }
+  render();
+}
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch(e) {}
+}
+
+function render() {
+  renderFilters();
+  renderCols();
+  renderProgress();
+}
+
+function renderProgress() {
+  const done = tasks.filter(t=>t.col==='done').length;
+  const pct = tasks.length ? Math.round(done/tasks.length*100) : 0;
+  document.getElementById('progress-label').textContent = `${done} of ${tasks.length} tasks complete`;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function renderFilters() {
+  const row = document.getElementById('filter-row');
+  row.innerHTML = '';
+  TAGS.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'pill' + (filter===tag ? ' active tag-'+tag : '');
+    btn.textContent = tag;
+    btn.onclick = () => { filter = tag; render(); };
+    row.appendChild(btn);
+  });
+}
+
+function renderCols() {
+  const grid = document.getElementById('cols-grid');
+  grid.innerHTML = '';
+
+  COLS.forEach(col => {
+    const visible = tasks.filter(t => t.col===col.id && (filter==='All' || t.tag===filter));
+
+    const wrap = document.createElement('div');
+    wrap.className = 'col-wrap';
+
+    const header = document.createElement('div');
+    header.className = 'col-header';
+    header.innerHTML = `
+      <span class="col-label" style="color:${col.color}">${col.label}</span>
+      <span class="col-count">${visible.length}</span>`;
+    wrap.appendChild(header);
+
+    const zone = document.createElement('div');
+    zone.className = 'col-zone';
+    zone.dataset.col = col.id;
+
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over'); });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (dragId !== null) {
+        const prev = tasks.find(t=>t.id===dragId)?.col;
+        tasks = tasks.map(t => t.id===dragId ? {...t, col:col.id} : t);
+        if (col.id==='done' && prev!=='done') burst();
+        dragId = null;
+        save(); render();
+      }
+    });
+
+    if (visible.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'col-empty';
+      empty.textContent = col.id==='done' ? 'Nothing done yet — get cracking!' : col.id==='doing' ? 'Drag tasks here to start' : 'All clear!';
+      zone.appendChild(empty);
+    }
+
+    visible.forEach(task => {
+      const card = document.createElement('div');
+      card.className = 'task-card' + (task.priority==='high' ? ' high-priority' : '');
+      card.draggable = true;
+      card.dataset.id = task.id;
+
+      card.addEventListener('dragstart', () => { dragId = task.id; setTimeout(()=>card.classList.add('dragging'),0); });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+
+      const dl = task.deadline ? `<span class="deadline-badge">by ${formatDate(task.deadline)}</span>` : '';
+      const dot = task.priority==='high' ? `<span class="priority-dot"></span>` : '';
+
+      let moveBtns = '';
+      if (col.id==='todo') {
+        moveBtns = `<button class="btn-move" style="background:#6366f1;color:#fff;" onclick="move(${task.id},'doing')">Start →</button>`;
+      } else if (col.id==='doing') {
+        moveBtns = `<button class="btn-move" style="background:#15803d;color:#fff;" onclick="move(${task.id},'done')">Done ✓</button>`;
+      } else {
+        moveBtns = `<button class="btn-move" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;" onclick="move(${task.id},'todo')">← Undo</button>`;
+      }
+
+      card.innerHTML = `
+        <div class="task-top">
+          <div class="task-text">${dot}${esc(task.text)}</div>
+          <button class="task-delete" onclick="del(${task.id})" title="Remove">×</button>
+        </div>
+        <div class="task-bottom">
+          <div class="task-meta">
+            <span class="tag-badge tb-${task.tag}">${task.tag}</span>
+            ${dl}
+          </div>
+          <div class="task-actions">${moveBtns}</div>
+        </div>`;
+
+      zone.appendChild(card);
+    });
+
+    wrap.appendChild(zone);
+    grid.appendChild(wrap);
+  });
+}
+
+function move(id, toCol) {
+  const prev = tasks.find(t=>t.id===id)?.col;
+  tasks = tasks.map(t => t.id===id ? {...t, col:toCol} : t);
+  if (toCol==='done' && prev!=='done') burst();
+  save(); render();
+}
+
+function del(id) {
+  tasks = tasks.filter(t=>t.id!==id);
+  save(); render();
+}
+
+function toggleAdd() {
+  addOpen = !addOpen;
+  const row = document.getElementById('add-row');
+  row.classList.toggle('open', addOpen);
+  if (addOpen) setTimeout(()=>document.getElementById('new-text').focus(), 50);
+  else { document.getElementById('new-text').value=''; document.getElementById('new-deadline').value=''; }
+}
+
+function commitAdd() {
+  const text = document.getElementById('new-text').value.trim();
+  if (!text) return;
+  const tag = document.getElementById('new-tag').value;
+  const priority = document.getElementById('new-priority').value;
+  const deadline = document.getElementById('new-deadline').value || null;
+  const maxId = tasks.reduce((m,t)=>Math.max(m,t.id),0);
+  tasks.push({id:maxId+1, text, tag, priority, deadline, col:'todo'});
+  document.getElementById('new-text').value = '';
+  document.getElementById('new-deadline').value = '';
+  save(); render();
+}
+
+function resetBoard() {
+  if (!confirm('Reset all tasks back to original list? Your progress will be lost.')) return;
+  tasks = INITIAL.map(t=>({...t}));
+  save(); render();
+}
+
+function exportTasks() {
+  const lines = ['WSC Task Board — J. Harper', '='.repeat(40), ''];
+  COLS.forEach(col => {
+    const ct = tasks.filter(t=>t.col===col.id);
+    lines.push(`${col.label.toUpperCase()} (${ct.length})`);
+    lines.push('-'.repeat(30));
+    ct.forEach(t => {
+      const dl = t.deadline ? ` [by ${formatDate(t.deadline)}]` : '';
+      const hi = t.priority==='high' ? ' ★' : '';
+      lines.push(`  [${t.tag}]${hi} ${t.text}${dl}`);
+    });
+    lines.push('');
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wsc-tasks.txt';
+  a.click();
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'});
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function burst() {
+  const colors = ['#e11d48','#d97706','#15803d','#6366f1','#ec4899','#0891b2'];
+  for (let i=0;i<12;i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-p';
+    el.style.cssText = `left:${30+Math.random()*40}%;top:${20+Math.random()*30}%;width:7px;height:7px;
+      border-radius:${i%2?'50%':'2px'};background:${colors[i%colors.length]};
+      animation-delay:${i*0.045}s;`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1400);
+  }
+}
+
+load();
+</script>
+</body>
+</html>
